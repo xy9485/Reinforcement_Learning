@@ -1,3 +1,5 @@
+import numpy as np
+
 def show_figure(prob_Q_A_left, prob_E_A_left, prob_AD_A_left, prob_Q2_A_left):
     import matplotlib.pyplot as plt
     plt.ylabel('% left actions from A')

@@ -1,4 +1,5 @@
 import random
+from env import Env
 
 
 def init_Q_table(env):
