@@ -1,5 +1,6 @@
 import random
 from env import Env
+import numpy as np
 
 
 def init_Q_table(env):

@@ -4,16 +4,16 @@ import random
 
 
 class Env():                   
-    '''构造一个环境类'''        
+    '''construct env'''        
     def __init__(self, mu, sigma, nB, random_reward=True):  
         self.mu = mu
         self.sigma = sigma
         self.STATE_A = self.left = 0
         self.STATE_B = self.right = 1
         self.Terminal = 2
-        self.nS = 3   # 加上Terminal即3个状态
+        self.nS = 3   # num of state
         self.nA = 2
-        self.nB = nB  # 状态B的动作数
+        self.nB = nB  # num of actions of state B
         self.state = self.STATE_A 
         self.random_reward = random_reward
         
@@ -42,56 +42,31 @@ class Env():
             return self.state, reward, True 
 
 def init_V_table(env):
-    '''初始化V表'''
     V = {env.STATE_A:0, env.STATE_B:0, env.Terminal:0}
-
-    # from collections import UserDict
-    # class V_table(UserDict):
-    #     def __getitem__(self, key):
-    #         value = super().__getitem__(key)
-    #         # add a Gaussian noise to the value
-    #         return np.random.normal(value, 0.1)
-    # V = V_table(V)
-    
+    # V = {env.STATE_A:np.random.normal(0,0.1), env.STATE_B:np.random.normal(0,0.1), env.Terminal:0}
     return V
 
 def init_Q_table(env):
-    '''初始化Q表'''
     Q = {env.STATE_A:{action:0 for action in range(env.nA)},
          env.STATE_B:{action:0 for action in range(env.nB)},
          env.Terminal:{action:0 for action in range(env.nA)}}
-    
-    # from collections import UserDict
-    # class Q_table(UserDict):
-    #     def __getitem__(self, key):
-    #         value = super().__getitem__(key)
-    #         # add a Gaussian noise to the value
-    #         return np.random.normal(value, 0.1) 
-    # Q = {env.STATE_A:Q_table({action:0 for action in range(env.nA)}),
-    #      env.STATE_B:Q_table({action:0 for action in range(env.nB)}),
-    #      env.Terminal:Q_table({action:0 for action in range(env.nA)})}        
-
+    # Q = {env.STATE_A:{action:np.random.normal(0,0.1) for action in range(env.nA)},
+    #  env.STATE_B:{action:np.random.normal(0,0.1) for action in range(env.nB)},
+    #  env.Terminal:{action:0 for action in range(env.nA)}}
     return Q
 
 def select_action_behavior_policy(action_value_dict, epsilon):
-    '''使用epsilon-greedy采样action'''
     if random.random() > epsilon:   
         max_keys = [key for key, value in action_value_dict.items() if value == max( action_value_dict.values() )]
         action = random.choice(max_keys)
     else:  
-        # 从Q字典对应state中随机选取1个动作,由于返回list,因此通过[0]获取元素
         action = random.sample(action_value_dict.keys(), 1)[0]
     return action
 
 
 def TD_learning(env, method='Q-Learning', alpha_scope=[0.1, 0.01, 0.99], epsilon_scope=[0.2,0.001,0.99], num_of_episode=1000, gamma=0.9, value_noise=0.0):
-    '''
-    TD学习算法,返回Q表和估计的最优策略
-    其中epsilon_scope由高到低衰减,从左到右分别是[最高值,最低值,衰减因子]
-    '''
     epsilon = epsilon_scope[0]
     alpha = alpha_scope[0]
-    # 1. 初始化Q1表和Q2表
     Q = init_Q_table(env)
     V = init_V_table(env)
     if method == 'Double-Q':
@@ -111,17 +86,16 @@ def TD_learning(env, method='Q-Learning', alpha_scope=[0.1, 0.01, 0.99], epsilon
         episode_reward = 0
         
         while True:
-            # 2.通过behavior policy采样action
             if method == 'Double-Q':
                 add_Q1_Q2_state = {action: Q1_value + Q2[state][action] for action, Q1_value in Q[state].items()}
                 action = select_action_behavior_policy(add_Q1_Q2_state, epsilon)
             else: action = select_action_behavior_policy(Q[state], epsilon)
             if state == env.STATE_A and action == env.left:  
                 bool_A_left[int(num)] += 1
-            # 3.执行action并观察R和next state
+
             next_state, reward, done = env.step(action)
             episode_reward += reward
-            # 4.更新Q(S,A),使用max操作更新
+
             if method == 'Q-Learning':
                 V[state] += alpha * (reward + gamma*V[next_state] - V[state])
                 Q[state][action] += alpha * (reward + gamma*max( Q[next_state].values() ) - Q[state][action])
@@ -149,9 +123,9 @@ def TD_learning(env, method='Q-Learning', alpha_scope=[0.1, 0.01, 0.99], epsilon
                 # Q2[state][action] += alpha * (reward + gamma*V[next_state]- Q2[state][action]) * 1000
 
                 if random.random() >= 0.5:
-                    # 从Q1表中的下一步state找出状态价值最高对应的action视为Q1[state]的最优动作
+                    
                     A1 = random.choice( [action for action, value in Q[next_state].items() if value == max( Q[next_state].values() )] )
-                    # 将Q1[state]得到的最优动作A1代入到Q2[state][A1]中的值作为Q1[state]的更新
+                    
                     Q[state][action] += alpha * (reward + gamma*Q2[next_state][A1] - Q[state][action])
                 else:
                     A2 = random.choice( [action for action, value in Q2[next_state].items() if value == max( Q2[next_state].values() )] )
@@ -169,7 +143,7 @@ def TD_learning(env, method='Q-Learning', alpha_scope=[0.1, 0.01, 0.99], epsilon
         episode_rewards.append(episode_reward)
         alpha_values.append(alpha)
         epsilon_values.append(epsilon)
-        # 对epsilon进行衰减
+
         if epsilon >= epsilon_scope[1]: epsilon *= epsilon_scope[2]
         if alpha >= alpha_scope[1]: alpha *= alpha_scope[2]
         if value_noise>0.0:
